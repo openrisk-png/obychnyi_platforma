@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Обычный Платформа [BETA]</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            color: #dcdcdc;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #ff3333;
+            text-shadow: 2px 2px 0px #00ffff, -2px -2px 0px #000;
+        }
+        .header .beta {
+            font-size: 12px;
+            color: #888;
+            letter-spacing: 1px;
+        }
+
+        /* Контейнер игры и VHS Эффект */
+        .game-wrapper {
+            position: relative;
+            width: 800px;
+            height: 480px;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.15), 0 0 10px rgba(0, 0, 0, 0.9);
+            border: 2px solid #222;
+            background: #000;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #0d0d0d;
+        }
+
+        /* VHS Оверлей */
+        .vhs-scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.4) 50%
+            ), linear-gradient(
+                90deg,
+                rgba(255, 0, 0, 0.03),
+                rgba(0, 255, 0, 0.01),
+                rgba(0, 255, 0, 0.03)
+            );
+            background-size: 100% 4px, 6px 100%;
+            z-index: 10;
+        }
+
+        .vhs-glitch {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            mix-blend-mode: color-dodge;
+            opacity: 0.15;
+            background: repeating-linear-gradient(0deg, #fff, #fff 1px, transparent 2px, transparent 5px);
+            animation: vhsNoise 0.2s infinite;
+            z-index: 11;
+        }
+
+        .vhs-rec {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            color: #ff3333;
+            font-weight: bold;
+            font-size: 14px;
+            letter-spacing: 2px;
+            z-index: 12;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-shadow: 0 0 5px red;
+        }
+        .rec-dot {
+            width: 10px;
+            height: 10px;
+            background: red;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        .vhs-info {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            color: #aaa;
+            font-size: 13px;
+            letter-spacing: 1px;
+            z-index: 12;
+        }
+
+        /* Диалоговое окно */
+        .dialog-box {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            background: rgba(10, 10, 10, 0.92);
+            border: 2px solid #555;
+            padding: 15px 20px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.8);
+            z-index: 20;
+            display: none;
+        }
+        .dialog-text {
+            color: #eee;
+            font-size: 16px;
+            line-height: 1.4;
+            font-style: italic;
+        }
+        .dialog-hint {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #888;
+            text-align: right;
+            font-style: normal;
+        }
+
+        /* Концовка */
+        .ending-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1.5s ease;
+        }
+        .ending-text {
+            font-size: 64px;
+            letter-spacing: 15px;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+
+        /* Футер со ссылкой */
+        .footer {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .footer a {
+            color: #ff4444;
+            text-decoration: none;
+            font-size: 15px;
+            letter-spacing: 1px;
+            font-weight: bold;
+            border-bottom: 1px dashed #ff4444;
+            transition: all 0.3s ease;
+        }
+        .footer a:hover {
+            color: #00ffff;
+            border-color: #00ffff;
+            text-shadow: 0 0 8px #00ffff;
+        }
+
+        /* Анимации */
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+        @keyframes vhsNoise {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(10px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Обычный Платформа</h1>
+        <div class="beta">[ В бета разработке ]</div>
+    </div>
+
+    <div class="game-wrapper">
+        <canvas id="gameCanvas" width="800" height="480"></canvas>
+        
+        <!-- VHS Эффекты -->
+        <div class="vhs-scanlines"></div>
+        <div class="vhs-glitch"></div>
+        
+        <div class="vhs-rec">
+            <div class="rec-dot"></div> REC <span id="timer">00:00:00</span>
+        </div>
+        <div class="vhs-info" id="levelDisplay">LVL: 01 / 30</div>
+
+        <!-- Окно диалога -->
+        <div class="dialog-box" id="dialogBox">
+            <div class="dialog-text" id="dialogText">...</div>
+            <div class="dialog-hint" id="dialogHint">Нажмите [ N ] для продолжения</div>
+        </div>
+
+        <!-- Финальная заставка -->
+        <div class="ending-screen" id="endingScreen">
+            <div class="ending-text" id="endingText">...</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <a href="https://max.ru/u/f9LHodD0cOIc3JpkaGFMwnE7FeJBzMoFBmy8ALm0BfN9WsCk8ALIzU4XHfg" target="_blank" rel="noopener noreferrer">Мой MAX</a>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const levelDisplay = document.getElementById('levelDisplay');
+    const timerDisplay = document.getElementById('timer');
+    const dialogBox = document.getElementById('dialogBox');
+    const dialogText = document.getElementById('dialogText');
+    const dialogHint = document.getElementById('dialogHint');
+    const endingScreen = document.getElementById('endingScreen');
+    const endingText = document.getElementById('endingText');
+
+    let currentLevel = 1;
+    let seconds = 0;
+    setInterval(() => {
+        seconds++;
+        let hrs = String(Math.floor(seconds / 3600)).padStart(2, '0');
+        let mins = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+        let secs = String(seconds % 60).padStart(2, '0');
+        timerDisplay.textContent = `${hrs}:${mins}:${secs}`;
+    }, 1000);
+
+    // Управление
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+        keys[e.code] = true;
+        handleActionKeys(e.code);
+    });
+    window.addEventListener('keyup', (e) => {
+        keys[e.code] = false;
+    });
+
+    // Игрок (Красный кубик)
+    const player = {
+        x: 50,
+        y: 350,
+        w: 24,
+        h: 24,
+        vx: 0,
+        vy: 0,
+        speed: 3.8,
+        jumpPower: -8.8,
+        gravity: 0.38,
+        grounded: false,
+        r: 235, g: 35, b: 35, // Исходный красный цвет
+        alpha: 1.0
+    };
+
+    let platforms = [];
+    let spikes = [];
+    let portal = null;
+    let wall = null;
+    let button = null;
+
+    // Стейты 31 уровня
+    let lvl31State = 0; // 0: идем к стене, 1: выцветание (10 сек), 2: кнопка падает, 3: диалог 1, 4: диалог 2, 5: кубик прозрачный (5 сек), 6: концовка
+    let greyFadeStartTime = 0;
+    let fadeOutStartTime = 0;
+
+    // Загрузка уровней (1 - 31)
+    function loadLevel(lvl) {
+        platforms = [];
+        spikes = [];
+        portal = null;
+        wall = null;
+        button = null;
+
+        player.x = 40;
+        player.y = 360;
+        player.vx = 0;
+        player.vy = 0;
+
+        levelDisplay.textContent = `LVL: ${lvl < 10 ? '0' + lvl : lvl} / 30`;
+
+        if (lvl <= 29) {
+            // Обычные уровни 1-29 с нарастающей сложностью
+            platforms.push({ x: 0, y: 420, w: 160, h: 60 });
+
+            let curX = 160;
+            let diff = lvl / 29; // Сложность 0.0 .. 1.0
+
+            while (curX < 680) {
+                let gap = 45 + diff * 65 + Math.random() * 20;
+                let platW = Math.max(50, 140 - diff * 80 + Math.random() * 30);
+                let platY = 420 - Math.sin(curX) * (diff * 140);
+                platY = Math.max(220, Math.min(420, platY));
+
+                platforms.push({ x: curX + gap, y: platY, w: platW, h: 480 - platY });
+
+                // Добавление шипов
+                if (diff > 0.25 && Math.random() < 0.35 + diff * 0.45) {
+                    spikes.push({
+                        x: curX + gap + platW / 2 - 10,
+                        y: platY - 14,
+                        w: 20,
+                        h: 14
+                    });
+                }
+                curX += gap + platW;
+            }
+
+            // Финишная платформа и портал
+            platforms.push({ x: 680, y: 400, w: 120, h: 80 });
+            portal = { x: 730, y: 350, w: 26, h: 50 };
+
+        } else if (lvl === 30) {
+            // 30 Уровень: Пустота, чёрный фон, тайная концовка
+            levelDisplay.textContent = `LVL: 30 / 30 [ ??? ]`;
+            // Невидимый пол в пустоте
+            platforms.push({ x: -1000, y: 400, w: 3000, h: 80, invisible: true });
+            
+        } else if (lvl === 31) {
+            // 31 Уровень: Стена вместо выхода
+            levelDisplay.textContent = `LVL: 31 / ???`;
+            platforms.push({ x: 0, y: 400, w: 800, h: 80, invisible: false });
+            
+            // Стена
+            wall = { x: 680, y: 0, w: 120, h: 400 };
+
+            // Кнопка
+            button = {
+                x: 645,
+                y: -30,
+                targetY: 382,
+                w: 24,
+                h: 18,
+                falling: false,
+                visible: false,
+                active: false
+            };
+        }
+    }
+
+    function handleActionKeys(code) {
+        if (currentLevel === 31) {
+            // Нажатие на E (кнопка)
+            if (code === 'KeyE' && lvl31State === 2 && button && button.active) {
+                lvl31State = 3;
+                showDialog("*переживает и дышит*", "Нажмите [ N ] для следующего диалога");
+            }
+            // Нажатие на N (следующий диалог)
+            else if (code === 'KeyN' && lvl31State === 3) {
+                lvl31State = 4;
+                showDialog("*исчезает*", "");
+                fadeOutStartTime = Date.now();
+            }
+        }
+    }
+
+    function showDialog(text, hint) {
+        dialogBox.style.display = 'block';
+        dialogText.textContent = text;
+        dialogHint.textContent = hint;
+    }
+
+    function hideDialog() {
+        dialogBox.style.display = 'none';
+    }
+
+    // Игровой цикл и логика
+    function update() {
+        // Управление
+        if (keys['ArrowLeft'] || keys['KeyA']) player.vx = -player.speed;
+        else if (keys['ArrowRight'] || keys['KeyD']) player.vx = player.speed;
+        else player.vx = 0;
+
+        if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && player.grounded) {
+            player.vy = player.jumpPower;
+            player.grounded = false;
+        }
+
+        // Физика
+        player.vy += player.gravity;
+        player.x += player.vx;
+        player.y += player.vy;
+        player.grounded = false;
+
+        // Коллизии с платформами
+        for (let plat of platforms) {
+            if (player.x + player.w > plat.x &&
+                player.x < plat.x + plat.w &&
+                player.y + player.h > plat.y &&
+                player.y < plat.y + plat.h) {
+                
+                // Сверху платформы
+                if (player.vy > 0 && player.y + player.h - player.vy <= plat.y + 4) {
+                    player.y = plat.y - player.h;
+                    player.vy = 0;
+                    player.grounded = true;
+                }
+            }
+        }
+
+        // Коллизия со стеной на 31 уровне
+        if (wall) {
+            if (player.x + player.w > wall.x) {
+                player.x = wall.x - player.w;
+                if (lvl31State === 0) {
+                    lvl31State = 1; // Запуск выцветания в серый
+                    greyFadeStartTime = Date.now();
+                }
+            }
+        }
+
+        // Логика 31 уровня
+        if (currentLevel === 31) {
+            // Выцветание в серый за 10 сек (Fade in серого цвета)
+            if (lvl31State === 1) {
+                let elapsed = (Date.now() - greyFadeStartTime) / 10000; // 10 сек
+                if (elapsed > 1) elapsed = 1;
+
+                // Переход от (235, 35, 35) к (120, 120, 120)
+                player.r = 235 + (120 - 235) * elapsed;
+                player.g = 35 + (120 - 35) * elapsed;
+                player.b = 35 + (120 - 35) * elapsed;
+
+                if (elapsed >= 1) {
+                    lvl31State = 2;
+                    button.visible = true;
+                    button.falling = true;
+                }
+            }
+
+            // Падение кнопки
+            if (lvl31State >= 2 && button && button.falling) {
+                button.y += 4;
+                if (button.y >= button.targetY) {
+                    button.y = button.targetY;
+                    button.falling = false;
+                    button.active = true;
+                    showDialog("На стене упала кнопка.", "Нажмите [ E ] чтобы нажать на кнопку");
+                }
+            }
+
+            // Исчезновение кубика (5 секунд)
+            if (lvl31State === 4) {
+                let elapsedFade = (Date.now() - fadeOutStartTime) / 5000; // 5 сек
+                player.alpha = Math.max(0, 1 - elapsedFade);
+
+                if (elapsedFade >= 1) {
+                    lvl31State = 5;
+                    hideDialog();
+                    // Запуск секретной концовки "..." на 5 секунд
+                    endingScreen.style.opacity = '1';
+                    setTimeout(() => {
+                        endingText.textContent = "";
+                        setTimeout(() => {
+                            location.reload(); // Перезапуск игры
+                        }, 1000);
+                    }, 5000);
+                }
+            }
+        }
+
+        // Проверка падения в бездну (для уровней 1-29)
+        if (currentLevel <= 29 && player.y > 520) {
+            loadLevel(currentLevel); // Рестарт
+        }
+
+        // Проверка шипов
+        for (let spike of spikes) {
+            if (player.x + player.w > spike.x &&
+                player.x < spike.x + spike.w &&
+                player.y + player.h > spike.y) {
+                loadLevel(currentLevel);
+            }
+        }
+
+        // Вход в портал
+        if (portal && player.x + player.w > portal.x &&
+            player.x < portal.x + portal.w &&
+            player.y + player.h > portal.y &&
+            player.y < portal.y + portal.h) {
+            currentLevel++;
+            loadLevel(currentLevel);
+        }
+
+        // Переход из уровня 30 (пустота) в 31 при движении вправо
+        if (currentLevel === 30 && player.x > 750) {
+            currentLevel = 31;
+            loadLevel(31);
+        }
+    }
+
+    // Отрисовка
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Фон
+        if (currentLevel === 30) {
+            ctx.fillStyle = "#000000"; // Черная пустота
+        } else {
+            ctx.fillStyle = "#0a0a0c";
+        }
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Платформы
+        for (let plat of platforms) {
+            if (!plat.invisible) {
+                ctx.fillStyle = "#1e1e24";
+                ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                ctx.strokeStyle = "#383842";
+                ctx.lineWidth = 2;
+                ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+            }
+        }
+
+        // Шипы
+        for (let spike of spikes) {
+            ctx.fillStyle = "#ff2222";
+            ctx.beginPath();
+            ctx.moveTo(spike.x, spike.y + spike.h);
+            ctx.lineTo(spike.x + spike.w / 2, spike.y);
+            ctx.lineTo(spike.x + spike.w, spike.y + spike.h);
+            ctx.fill();
+        }
+
+        // Портал выхода
+        if (portal) {
+            ctx.fillStyle = "#00ffcc";
+            ctx.shadowColor = "#00ffcc";
+            ctx.shadowBlur = 15;
+            ctx.fillRect(portal.x, portal.y, portal.w, portal.h);
+            ctx.shadowBlur = 0;
+        }
+
+        // Стена на 31 уровне
+        if (wall) {
+            ctx.fillStyle = "#18181b";
+            ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
+            ctx.strokeStyle = "#444";
+            ctx.lineWidth = 4;
+            ctx.strokeRect(wall.x, wall.y, wall.w, wall.h);
+
+            // Текстура стены
+            ctx.fillStyle = "#222";
+            for(let i = 0; i < wall.h; i += 30) {
+                ctx.fillRect(wall.x, i, wall.w, 2);
+            }
+        }
+
+        // Кнопка на стене
+        if (button && button.visible) {
+            ctx.fillStyle = "#ffcc00";
+            ctx.shadowColor = "#ffcc00";
+            ctx.shadowBlur = 8;
+            ctx.fillRect(button.x, button.y, button.w, button.h);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "#553300";
+            ctx.fillRect(button.x + 4, button.y + 4, button.w - 8, button.h - 8);
+        }
+
+        // Отрисовка Красного/Серого кубика
+        if (player.alpha > 0) {
+            ctx.save();
+            ctx.globalAlpha = player.alpha;
+            ctx.fillStyle = `rgb(${Math.round(player.r)}, ${Math.round(player.g)}, ${Math.round(player.b)})`;
+            ctx.shadowColor = `rgba(${Math.round(player.r)}, 0, 0, 0.6)`;
+            ctx.shadowBlur = 10;
+            ctx.fillRect(player.x, player.y, player.w, player.h);
+
+            // Глаза кубика
+            ctx.fillStyle = "#000";
+            if (lvl31State >= 1) {
+                ctx.fillRect(player.x + 5, player.y + 7, 3, 3);
+                ctx.fillRect(player.x + 15, player.y + 7, 3, 3);
+            } else {
+                ctx.fillRect(player.x + 4, player.y + 6, 4, 6);
+                ctx.fillRect(player.x + 14, player.y + 6, 4, 6);
+            }
+            ctx.restore();
+        }
+
+        // VHS глитч-эффект
+        if (Math.random() < 0.08) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.05})`;
+            ctx.fillRect(0, Math.random() * canvas.height, canvas.width, Math.random() * 4);
+        }
+    }
+
+    // Главный цикл
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    // Запуск игры
+    loadLevel(1);
+    loop();
+</script>
+</body>
+</html>
